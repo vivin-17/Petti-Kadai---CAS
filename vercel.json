@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "functions": {
+    "api/site.js": { "includeFiles": "dist/**" }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/api/site?petti_route=index" },
+    { "source": "/unlock", "destination": "/api/site?petti_route=unlock" },
+    { "source": "/lock", "destination": "/api/site?petti_route=lock" },
+    { "source": "/app.js", "destination": "/api/site?petti_route=app.js" },
+    { "source": "/db.js", "destination": "/api/site?petti_route=db.js" },
+    { "source": "/style.css", "destination": "/api/site?petti_route=style.css" }
+  ]
+}

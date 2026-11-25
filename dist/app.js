@@ -385,7 +385,7 @@ updateConnection();
 renderOrders();
 void refresh().catch(storageError);
 
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && !document.querySelector('meta[name="petti-protected"]')) {
   navigator.serviceWorker.register('./sw.js').catch(error => {
     console.error(error);
     showStatus('error', 'Offline setup could not complete. Reload while online to try again.');
