@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f6ef">
+  <title>Petti Kada · Stall dashboard</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="shell brand-row">
+      <div class="brand"><span class="logo" aria-hidden="true">▤</span><span>Petti Kada<small>Stall dashboard</small></span></div>
+      <span class="storage"><span aria-hidden="true"></span><span id="connection">On this device</span></span>
+    </div>
+  </header>
+  <main class="shell">
+    <div class="intro">
+      <div><h1>Stall overview</h1><p id="date"></p></div>
+      <div class="segments" role="group" aria-label="Sales period">
+        <button type="button" data-period="today" aria-pressed="true">Today</button>
+        <button type="button" data-period="all" aria-pressed="false">All time</button>
+      </div>
+    </div>
+    <section class="metrics" aria-label="Sales summary">
+      <article class="metric primary"><div><span aria-hidden="true">↗</span>Total collected</div><strong id="total">₹0.00</strong></article>
+      <article class="metric"><div><span aria-hidden="true">₹</span>Cash</div><strong id="cash">₹0.00</strong></article>
+      <article class="metric"><div><span aria-hidden="true">↔</span>UPI</div><strong id="upi">₹0.00</strong></article>
+      <article class="metric pending"><div><span aria-hidden="true">◷</span>Awaiting payment</div><strong id="pending">0</strong></article>
+    </section>
+
+    <nav class="tabs" aria-label="Stall tools">
+      <button type="button" data-view="new" aria-current="true">New order</button>
+      <button type="button" data-view="awaiting">Awaiting payment <span id="pending-tab">0</span></button>
+      <button type="button" data-view="paid">Paid orders</button>
+      <button type="button" data-view="menu">Manage menu</button>
+    </nav>
+    <p id="notice" role="status" hidden></p>
+    <div id="error" role="alert" hidden></div>
+
+    <section id="view-new" class="order-layout" aria-label="New order">
+      <article class="panel">
+        <div class="panel-head"><h2>Menu</h2><button type="button" class="outline" data-action="add-item">+ Add item</button></div>
+        <div id="order-menu" class="menu-grid"></div>
+      </article>
+      <article class="panel cart">
+        <div class="panel-head"><h2>Current order</h2><span id="quantity" class="count">0 items</span></div>
+        <div id="cart-lines"></div>
+        <div class="cart-total"><span>Order total</span><strong id="cart-total">₹0.00</strong></div>
+        <button type="button" class="solid" id="save-order" data-action="save-order" disabled>Save order <span aria-hidden="true">→</span></button>
+      </article>
+    </section>
+
+    <section id="view-awaiting" class="panel" aria-labelledby="awaiting-heading" hidden>
+      <div class="panel-head"><h2 id="awaiting-heading">Awaiting payment</h2></div>
+      <div id="awaiting-list" class="record-list"></div>
+    </section>
+    <section id="view-paid" class="panel" aria-labelledby="paid-heading" hidden>
+      <div class="panel-head"><h2 id="paid-heading">Paid orders</h2></div>
+      <div id="paid-list" class="record-list"></div>
+    </section>
+    <section id="view-menu" class="panel" aria-labelledby="menu-heading" hidden>
+      <div class="panel-head"><h2 id="menu-heading">Manage menu</h2><button type="button" class="outline" data-action="add-item">+ Add item</button></div>
+      <div id="manage-list" class="record-list"></div>
+    </section>
+    <footer>Sales and orders are stored in this browser.</footer>
+  </main>
+
+  <dialog id="item-dialog" aria-labelledby="item-heading">
+    <form id="item-form">
+      <div class="panel-head"><h2 id="item-heading">Add menu item</h2><button type="button" class="close" data-action="close-item" aria-label="Close">×</button></div>
+      <label for="item-name">Item name</label>
+      <input id="item-name" name="name" required maxlength="80" autocomplete="off" autofocus>
+      <label for="item-price">Price in rupees</label>
+      <input id="item-price" name="price" required inputmode="decimal" maxlength="12" placeholder="0.00" autocomplete="off">
+      <p id="form-error" role="alert" hidden></p>
+      <button class="solid" id="save-item" type="submit">Save item</button>
+    </form>
+  </dialog>
+</body>
+</html>
