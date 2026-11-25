@@ -1,11 +1,13 @@
-import { readRecords, recordPayment, saveMenuItem, saveOrder } from './db.js';
+import { deleteOrder, readRecords, recordPayment, saveMenuItem, saveOrder } from './db.js?v=2';
 
 const byId = id => document.getElementById(id);
 const tabs = [...document.querySelectorAll('[data-view]')];
 const periods = [...document.querySelectorAll('[data-period]')];
 const itemDialog = byId('item-dialog');
 const itemForm = byId('item-form');
-const cart = new Map();
+const deleteDialog = byId('delete-dialog');
+const newCart = new Map();
+let cart = newCart;
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
 const timeZone = 'Asia/Kolkata';
 const calendarDay = new Intl.DateTimeFormat('en-IN', { timeZone, dateStyle: 'short' });
@@ -16,6 +18,8 @@ let menu = [];
 let orders = [];
 let todayOnly = true;
 let editingId = null;
+let editingOrderId = null;
+let deleteTarget = null;
 let busy = false;
 let writingItem = false;
 let ready = false;
@@ -108,6 +112,9 @@ function renderCart() {
   byId('quantity').textContent = quantity + (quantity === 1 ? ' item' : ' items');
   byId('cart-total').textContent = money(total);
   byId('save-order').disabled = !lines.length || busy;
+  byId('save-order').textContent = editingOrderId === null ? 'Save order' : 'Save changes';
+  byId('cart-heading').textContent = editingOrderId === null ? 'Current order' : 'Edit ' + orderName(editingOrderId);
+  byId('cancel-edit').hidden = editingOrderId === null;
   const rows = lines.map(line => {
     const row = element('div', undefined, 'cart-line');
     const label = element('div');
@@ -141,6 +148,10 @@ function orderCard(order) {
     actions.append(action('Mark paid by Cash', 'pay-cash', order.id), action('Mark paid by UPI', 'pay-upi', order.id));
     end.append(actions);
   }
+  const controls = element('div', undefined, 'order-actions');
+  if (!order.payment) controls.append(action('Edit order', 'edit-order', order.id));
+  controls.append(action('Delete order', 'ask-delete', order.id, 'outline danger'));
+  end.append(controls);
   card.append(summary, end);
   return card;
 }
@@ -156,8 +167,8 @@ function renderOrders() {
 async function refresh() {
   ({ menu, orders } = await readRecords());
   for (const item of menu) {
-    const line = cart.get(item.id);
-    if (line) cart.set(item.id, { ...item, quantity: line.quantity });
+    const line = newCart.get(item.id);
+    if (line) newCart.set(item.id, { ...item, quantity: line.quantity });
   }
   ready = true;
   renderMenu();
@@ -213,16 +224,87 @@ itemForm.addEventListener('submit', async event => {
   }
 });
 
+function openOrderEditor(order) {
+  if (editingOrderId !== order.id) {
+    editingOrderId = order.id;
+    cart = new Map(order.lines.map(line => [line.id, { ...line }]));
+  }
+  showStatus('notice');
+  selectView('new');
+  renderCart();
+  const heading = byId('cart-heading');
+  heading.tabIndex = -1;
+  heading.focus();
+}
+
+function closeOrderEditor() {
+  editingOrderId = null;
+  cart = newCart;
+  selectView('awaiting');
+  renderCart();
+}
+
+function askDelete(order) {
+  deleteTarget = { id: order.id, wasPaid: Boolean(order.payment) };
+  const effect = order.payment ? ' It will also remove ' + money(order.total) + ' from ' + order.payment.method + ' sales.' : '';
+  byId('delete-heading').textContent = 'Delete ' + orderName(order.id) + '?';
+  byId('delete-description').textContent = 'This permanently deletes the order.' + effect;
+  showStatus('delete-error');
+  deleteDialog.showModal();
+}
+
+deleteDialog.addEventListener('cancel', event => {
+  if (byId('confirm-delete').disabled) event.preventDefault();
+});
+
+byId('delete-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (busy || !deleteTarget) return;
+  const { id, wasPaid } = deleteTarget;
+  const confirm = byId('confirm-delete');
+  busy = true;
+  confirm.disabled = true;
+  showStatus('delete-error');
+  try {
+    if (!await deleteOrder(id, wasPaid)) {
+      showStatus('delete-error', 'This order changed or was deleted. Close this dialog and check the order list.');
+      await refresh();
+      return;
+    }
+    if (editingOrderId === id) closeOrderEditor();
+    deleteDialog.close();
+    sync?.postMessage('changed');
+    showStatus('notice', orderName(id) + ' deleted.');
+    await refresh();
+    tabs.find(tab => tab.getAttribute('aria-current') === 'true')?.focus();
+  } catch (error) {
+    console.error(error);
+    if (deleteDialog.open) showStatus('delete-error', 'Could not delete the order. Try again.');
+    else storageError();
+  } finally {
+    busy = false;
+    confirm.disabled = false;
+    byId('save-order').disabled = !cart.size;
+  }
+});
+
 async function updateOrder(name, id) {
   if (busy || (name === 'save-order' && !cart.size)) return;
   busy = true;
   byId('save-order').disabled = true;
   try {
     if (name === 'save-order') {
-      const order = await saveOrder([...cart.values()]);
-      cart.clear();
-      selectView('awaiting');
-      showStatus('notice', orderName(order.id) + ' saved. Record payment after receiving it.');
+      const order = await saveOrder([...cart.values()], editingOrderId);
+      if (editingOrderId !== null) {
+        const editedId = editingOrderId;
+        closeOrderEditor();
+        if (order) showStatus('notice', orderName(order.id) + ' updated.');
+        else showStatus('error', orderName(editedId) + ' is no longer awaiting payment. Your changes were discarded.');
+      } else {
+        cart.clear();
+        selectView('awaiting');
+        showStatus('notice', orderName(order.id) + ' saved. Record payment after receiving it.');
+      }
     } else {
       const method = name === 'pay-cash' ? 'Cash' : 'UPI';
       const order = await recordPayment(id, method);
@@ -256,10 +338,23 @@ document.addEventListener('click', event => {
     renderOrders();
   }
   if (name === 'close-item' && !writingItem) itemDialog.close();
+  if (name === 'cancel-delete' && !byId('confirm-delete').disabled) deleteDialog.close();
   if (!name || !ready) return;
   showStatus('error');
   if (name === 'add-item') openItem();
   if (name === 'edit-item') openItem(menu.find(item => item.id === id));
+  if (name === 'edit-order' && !busy) {
+    const order = orders.find(entry => entry.id === id);
+    if (order && !order.payment) openOrderEditor(order);
+  }
+  if (name === 'cancel-edit' && !busy) {
+    closeOrderEditor();
+    tabs.find(tab => tab.dataset.view === 'awaiting')?.focus();
+  }
+  if (name === 'ask-delete' && !busy) {
+    const order = orders.find(entry => entry.id === id);
+    if (order) askDelete(order);
+  }
   if ((name === 'increase' || name === 'decrease') && !busy) {
     const item = cart.get(id) ?? menu.find(entry => entry.id === id);
     if (!item) return;

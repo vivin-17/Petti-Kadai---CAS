@@ -63,11 +63,18 @@ h2 { font-size: 1.23rem; letter-spacing: -.035em; }
 .empty .symbol { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; margin: 0 auto 11px; background: #eeefe4; color: var(--green); font-size: 1.2rem; }
 .cart-total { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--line); margin: 0 17px; padding: 13px 0; }
 .cart-total strong { font-size: 1.26rem; }
-.cart > .solid { display: flex; align-items: center; justify-content: space-between; width: calc(100% - 34px); margin: 0 17px 17px; padding: 10px 12px; }
+.cart-actions { display: flex; gap: 8px; margin: 0 17px 17px; }
+.cart-actions .solid { flex: 1; text-align: left; padding: 10px 12px; }
 .cart-line, .menu-row, .record { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 17px; overflow-wrap: anywhere; }
 .cart-line + .cart-line, .menu-row + .menu-row, .record + .record { border-top: 1px solid var(--line); }
 .cart-line small, .record small { display: block; color: var(--muted); }
-.stepper, .payment-actions { display: flex; gap: 6px; align-items: center; flex: none; }
+.stepper, .payment-actions, .order-actions, .dialog-actions { display: flex; gap: 6px; align-items: center; flex: none; }
+.payment-actions, .order-actions { flex-wrap: wrap; }
+.dialog-actions { justify-content: flex-end; margin-top: 8px; }
+.dialog-actions .solid { margin-top: 0; }
+.outline.danger { color: #8b2c21; }
+.solid.danger { background: #8b2c21; border-color: #8b2c21; }
+.solid.danger:hover:not(:disabled) { background: #722119; }
 .stepper button { width: 34px; height: 34px; padding: 0; }
 .record { align-items: start; }
 .record h3 { font-size: 1rem; margin: 0 0 4px; }
@@ -76,7 +83,7 @@ h2 { font-size: 1.23rem; letter-spacing: -.035em; }
 .record-end > strong { font-size: 1.15rem; }
 .method { color: var(--green); background: #e9eee1; border-radius: 16px; padding: 2px 9px; font-size: .8rem; font-weight: 700; }
 #notice, #error { padding: 9px 12px; border-radius: 8px; margin: 0 0 12px; background: #e8f0e2; }
-#error, #form-error { color: #8b2c21; background: #faeae2; }
+#error, #form-error, #delete-error { color: #8b2c21; background: #faeae2; }
 footer { padding: 19px 0 28px; color: var(--muted); font-size: .78rem; }
 dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); color: var(--ink); padding: 0; width: min(420px, calc(100% - 30px)); }
 dialog::backdrop { background: #1b2b2380; }
@@ -85,7 +92,7 @@ dialog .panel-head { padding-inline: 0; margin-bottom: 5px; }
 dialog label { font-weight: 650; font-size: .88rem; }
 dialog input { border: 1px solid #aeb9ac; background: white; border-radius: 8px; padding: 9px 11px; color: var(--ink); }
 dialog .solid { margin-top: 7px; }
-#form-error { padding: 8px; }
+#form-error, #delete-error { padding: 8px; }
 @media (max-width: 760px) {
   .shell { width: calc(100% - 32px); }
   .order-layout { grid-template-columns: 1fr; }

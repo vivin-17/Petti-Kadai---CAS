@@ -1,8 +1,8 @@
-const cacheName = 'petti-kada-shell-v1';
-const shell = ['index.html', 'style.css', 'app.js', 'db.js'].map(file => new URL(file, self.registration.scope).href);
+const cacheName = 'petti-kada-shell-v2';
+const shell = ['index.html', 'style.css?v=2', 'app.js?v=2', 'db.js?v=2'].map(file => new URL(file, self.registration.scope).href);
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(shell)));
+  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(shell)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {

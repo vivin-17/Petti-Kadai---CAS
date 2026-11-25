@@ -40,15 +40,40 @@ export function saveMenuItem(item) {
   });
 }
 
-export function saveOrder(lines) {
+export function saveOrder(lines, id = null) {
   return transact(['orders'], 'readwrite', (transaction, done) => {
     const total = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
     if (!lines.length || !Number.isSafeInteger(total) || total <= 0) {
       throw new Error('Invalid order total.');
     }
-    const order = { lines, total, createdAt: Date.now(), payment: null };
-    const request = transaction.objectStore('orders').add(order);
-    request.onsuccess = () => done({ ...order, id: request.result });
+    const orders = transaction.objectStore('orders');
+    if (id === null) {
+      const order = { lines, total, createdAt: Date.now(), payment: null };
+      const request = orders.add(order);
+      request.onsuccess = () => done({ ...order, id: request.result });
+      return;
+    }
+    const request = orders.get(id);
+    request.onsuccess = () => {
+      const order = request.result;
+      if (!order || order.payment) return;
+      const updated = { ...order, lines, total };
+      orders.put(updated);
+      done(updated);
+    };
+  });
+}
+
+export function deleteOrder(id, wasPaid) {
+  return transact(['orders'], 'readwrite', (transaction, done) => {
+    const orders = transaction.objectStore('orders');
+    const request = orders.get(id);
+    request.onsuccess = () => {
+      const order = request.result;
+      if (!order || Boolean(order.payment) !== wasPaid) return;
+      orders.delete(id);
+      done(true);
+    };
   });
 }
 

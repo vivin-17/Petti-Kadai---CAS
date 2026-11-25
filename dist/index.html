@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f8f6ef">
   <title>Petti Kada · Stall dashboard</title>
-  <link rel="stylesheet" href="./style.css">
-  <script type="module" src="./app.js"></script>
+  <link rel="stylesheet" href="./style.css?v=2">
+  <script type="module" src="./app.js?v=2"></script>
 </head>
 <body>
   <header class="top">
@@ -45,10 +45,13 @@
         <div id="order-menu" class="menu-grid"></div>
       </article>
       <article class="panel cart">
-        <div class="panel-head"><h2>Current order</h2><span id="quantity" class="count">0 items</span></div>
+        <div class="panel-head"><h2 id="cart-heading">Current order</h2><span id="quantity" class="count">0 items</span></div>
         <div id="cart-lines"></div>
         <div class="cart-total"><span>Order total</span><strong id="cart-total">₹0.00</strong></div>
-        <button type="button" class="solid" id="save-order" data-action="save-order" disabled>Save order <span aria-hidden="true">→</span></button>
+        <div class="cart-actions">
+          <button type="button" class="outline" id="cancel-edit" data-action="cancel-edit" hidden>Cancel edit</button>
+          <button type="button" class="solid" id="save-order" data-action="save-order" disabled>Save order</button>
+        </div>
       </article>
     </section>
 
@@ -76,6 +79,17 @@
       <input id="item-price" name="price" required inputmode="decimal" maxlength="12" placeholder="0.00" autocomplete="off">
       <p id="form-error" role="alert" hidden></p>
       <button class="solid" id="save-item" type="submit">Save item</button>
+    </form>
+  </dialog>
+  <dialog id="delete-dialog" aria-labelledby="delete-heading" aria-describedby="delete-description">
+    <form id="delete-form">
+      <div class="panel-head"><h2 id="delete-heading">Delete order?</h2></div>
+      <p id="delete-description"></p>
+      <p id="delete-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="outline" data-action="cancel-delete" autofocus>Cancel</button>
+        <button type="submit" class="solid danger" id="confirm-delete">Confirm deletion</button>
+      </div>
     </form>
   </dialog>
 </body>
