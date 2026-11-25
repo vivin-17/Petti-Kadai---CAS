@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { handleRequest, isConfigured } from './gate.js';
 
 if (!isConfigured(process.env)) {
-  console.error('Set a PETTI_PASSCODE of at least 16 characters and a 64-character hexadecimal PETTI_SESSION_SECRET in .env.');
+  console.error('Set a six-digit PETTI_PASSCODE and a 64-character hexadecimal PETTI_SESSION_SECRET in .env.');
   process.exit(1);
 }
 

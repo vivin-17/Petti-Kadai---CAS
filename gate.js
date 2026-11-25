@@ -3,15 +3,51 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const sessionAge = 12 * 60 * 60;
+const attemptLimit = 10;
+const attemptWindow = 15 * 60;
+let localAttempts = 0;
+let localReset = 0;
 const assets = new Map([
   ['app.js', 'text/javascript; charset=utf-8'],
   ['db.js', 'text/javascript; charset=utf-8'],
   ['style.css', 'text/css; charset=utf-8'],
 ]);
 
-export function isConfigured(env) {
-  const length = env.PETTI_PASSCODE?.length ?? 0;
-  return length >= 16 && length <= 256 && /^[a-f0-9]{64}$/i.test(env.PETTI_SESSION_SECRET ?? '');
+export function isConfigured(env, secure = false) {
+  if (!/^\d{6}$/.test(env.PETTI_PASSCODE ?? '') || !/^[a-f0-9]{64}$/i.test(env.PETTI_SESSION_SECRET ?? '')) return false;
+  if (!secure) return true;
+  return env.UPSTASH_REDIS_REST_URL?.startsWith('https://') && Boolean(env.UPSTASH_REDIS_REST_TOKEN);
+}
+
+async function allowAttempt(env, secure) {
+  if (!secure) {
+    const now = Date.now();
+    if (now >= localReset) {
+      localAttempts = 0;
+      localReset = now + attemptWindow * 1000;
+    }
+    return ++localAttempts <= attemptLimit;
+  }
+  const script = `
+    local count = redis.call("INCR", KEYS[1])
+    if count == 1 then redis.call("EXPIRE", KEYS[1], ARGV[1]) end
+    return count
+  `;
+  const key = 'petti-kada:unlock:' + (env.VERCEL_ENV ?? 'production');
+  const response = await fetch(env.UPSTASH_REDIS_REST_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + env.UPSTASH_REDIS_REST_TOKEN,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(['EVAL', script, '1', key, String(attemptWindow)]),
+    signal: AbortSignal.timeout(4000),
+    redirect: 'error',
+  });
+  if (!response.ok) throw new Error('Attempt counter unavailable');
+  const { result } = await response.json();
+  if (!Number.isSafeInteger(result) || result < 1) throw new Error('Invalid attempt count');
+  return result <= attemptLimit;
 }
 
 function digest(value) {
@@ -60,7 +96,7 @@ function unlockPage(message = '') {
   ${message ? '<p class="error" role="alert">' + message + '</p>' : ''}
   <form action="/unlock" method="post">
     <label for="passcode">Passcode</label>
-    <input id="passcode" name="passcode" type="password" required maxlength="256" autocomplete="current-password">
+    <input id="passcode" name="passcode" type="password" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="current-password">
     <button type="submit">Unlock dashboard</button>
   </form>
 </main></body></html>`;
@@ -94,7 +130,7 @@ export async function handleRequest(request, response, route, env, secure) {
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('Referrer-Policy', 'no-referrer');
   response.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
-  if (!isConfigured(env)) return send(response, 503, 'The stall dashboard is awaiting configuration.');
+  if (!isConfigured(env, secure)) return send(response, 503, 'The stall dashboard is awaiting configuration.');
 
   const html = 'text/html; charset=utf-8';
   if (request.method === 'POST' && (route === 'unlock' || route === 'lock')) {
@@ -105,6 +141,12 @@ export async function handleRequest(request, response, route, env, secure) {
     }
     try {
       const passcode = await readPasscode(request);
+      if (!/^\d{6}$/.test(passcode)) {
+        return send(response, 401, unlockPage('Enter the six-digit passcode.'), html);
+      }
+      if (!await allowAttempt(env, secure)) {
+        return send(response, 429, unlockPage('Too many unlock attempts. Try again in 15 minutes.'), html);
+      }
       if (!timingSafeEqual(digest(passcode), digest(env.PETTI_PASSCODE))) {
         return send(response, 401, unlockPage('Incorrect passcode. Try again.'), html);
       }
@@ -112,7 +154,7 @@ export async function handleRequest(request, response, route, env, secure) {
       response.setHeader('Set-Cookie', sessionCookie(session + '.' + signature(session, env).toString('hex'), sessionAge, secure));
       return redirect(response);
     } catch {
-      return send(response, 400, unlockPage('Could not read the passcode. Try again.'), html);
+      return send(response, 503, unlockPage('Unlock is temporarily unavailable. Try again shortly.'), html);
     }
   }
 
